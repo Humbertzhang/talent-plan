@@ -1,7 +1,11 @@
 package main
 
 import (
+	"flag"
+	"log"
 	"math"
+	"os"
+	"runtime/pprof"
 	"sort"
 	"sync"
 )
@@ -9,17 +13,14 @@ import (
 // MergeSort performs the merge sort algorithm.
 // Please supplement this function to accomplish the home work.
 func MergeSort(src []int64) (srcNew []int64) {
-	//fmt.Printf("init Src: :%+v\n", src)
-
 	/************分割src开始*************/
 	// gcnt Goroutine数目
-	// gCnt仅取偶数
 	var gCnt int
 
 	if len(src) < 100 {
 		gCnt = 1
 	} else {
-		gCnt = 4
+		gCnt = 16
 	}
 
 	lenSrc := len(src)
@@ -36,17 +37,14 @@ func MergeSort(src []int64) (srcNew []int64) {
 		endIdx = int(math.Min(float64(startIdx+lenSrc/gCnt), float64(lenSrc)))
 	}
 
-	//fmt.Printf("slices %+v\n", slices)
 	/*************分割src结束************/
 
-
-
-	//fmt.Printf("Before Sort: %#v\n", slices)
 
 
 	/*************排序每个slice开始************/
 	var wg sync.WaitGroup
 	// sort every slice
+	// use goroutine to make it fast
 	for i := 0; i < len(slices); i+=1 {
 		wg.Add(1)
 		go func(s *[]int64) {
@@ -60,14 +58,10 @@ func MergeSort(src []int64) (srcNew []int64) {
 	/**************排序每个slice结束***********/
 
 
-	//fmt.Printf("After Sort: %#v\n", slices)
-
-
 	/**************归并slices开始***********/
 	// 两两归并
 	// slices[i] 和 slice[i+1]归并到slices[i]
 	// 注意处理奇数情况
-	// 先不并发归并
 
 	for len(slices) > 1 {
 		slicesNext := make([][]int64, 0)
@@ -81,18 +75,13 @@ func MergeSort(src []int64) (srcNew []int64) {
 		}
 		slices = slicesNext
 	}
+	/**************归并slices结束***********/
+
+
 	srcNew = slices[0]
 	return
 }
 
-func main() {
-	src := make([]int64, 0)
-	for i := 20; i > 0; i-- {
-		src = append(src, int64(i))
-	}
-
-	MergeSort(src)
-}
 
 func MergeSlices(s1 []int64, s2 []int64) (ms []int64) {
 	ms = make([]int64, 0)
@@ -122,4 +111,26 @@ func MergeSlices(s1 []int64, s2 []int64) (ms []int64) {
 		}
 	}
 	return ms
+}
+
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
+func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	// for test
+	src := make([]int64, 0)
+	for i := 102400000; i > 0; i-- {
+		src = append(src, int64(i))
+	}
+
+	MergeSort(src)
 }
